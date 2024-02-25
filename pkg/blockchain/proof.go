@@ -30,7 +30,7 @@ func (p *ProofOfWork) PrepareData(nonce int) []byte {
 	data := bytes.Join(
 		[][]byte{
 			p.Block.PrevHash,
-			p.Block.Data,
+			p.Block.HashTransactions(),
 			utils.ToHex(int64(nonce)),
 			utils.ToHex(int64(Difficulty)),
 		},
