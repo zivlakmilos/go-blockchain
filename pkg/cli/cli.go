@@ -8,6 +8,7 @@ import (
 
 	"github.com/zivlakmilos/go-blockchain/pkg/blockchain"
 	"github.com/zivlakmilos/go-blockchain/pkg/utils"
+	"github.com/zivlakmilos/go-blockchain/pkg/wallet"
 )
 
 type CommandLine struct{}
@@ -22,6 +23,8 @@ func (c *CommandLine) printUsage() {
 	fmt.Printf("  create -address ADDRESS - creates a blockchain and sends genesis transaction to address\n")
 	fmt.Printf("  print - Prints the blocks in the chain\n")
 	fmt.Printf("  send -from FROM -to TO -amount AMOUNT - Send amount of coins\n")
+	fmt.Printf("  createwallet - Create a new wallet\n")
+	fmt.Printf("  listwallets - List all wallet addresses\n")
 }
 
 func (c *CommandLine) validateArgs() {
@@ -38,6 +41,8 @@ func (c *CommandLine) Run() {
 	createCmd := flag.NewFlagSet("create", flag.ExitOnError)
 	printCmd := flag.NewFlagSet("print", flag.ExitOnError)
 	sendCmd := flag.NewFlagSet("send", flag.ExitOnError)
+	createWallet := flag.NewFlagSet("createwallet", flag.ExitOnError)
+	listWallets := flag.NewFlagSet("listwallet", flag.ExitOnError)
 
 	balanceAddress := balanceCmd.String("address", "", "Address")
 	createAddress := createCmd.String("address", "", "Address")
@@ -58,6 +63,12 @@ func (c *CommandLine) Run() {
 		utils.HandleError(err)
 	case "send":
 		err := sendCmd.Parse(os.Args[2:])
+		utils.HandleError(err)
+	case "createwallet":
+		err := createWallet.Parse(os.Args[2:])
+		utils.HandleError(err)
+	case "listwallets":
+		err := listWallets.Parse(os.Args[2:])
 		utils.HandleError(err)
 	default:
 		c.printUsage()
@@ -90,6 +101,14 @@ func (c *CommandLine) Run() {
 			runtime.Goexit()
 		}
 		c.handleSend(*sendFrom, *sendTo, *sendAmount)
+	}
+
+	if createWallet.Parsed() {
+		c.handleCreateWallet()
+	}
+
+	if listWallets.Parsed() {
+		c.handleListWallts()
 	}
 }
 
@@ -127,4 +146,21 @@ func (c *CommandLine) handleSend(from, to string, amount int) {
 	chain.AddBlock([]*blockchain.Transaction{tx})
 
 	fmt.Printf("Success!\n")
+}
+
+func (c *CommandLine) handleListWallts() {
+	wallets, _ := wallet.NewWallets()
+	addresses := wallets.GetAllAddresses()
+
+	for _, address := range addresses {
+		fmt.Printf("%s\n", address)
+	}
+}
+
+func (c *CommandLine) handleCreateWallet() {
+	wallets, _ := wallet.NewWallets()
+	address := wallets.AddWallet()
+	wallets.SaveFile()
+
+	fmt.Printf("New address is: %s\n", address)
 }
