@@ -1,6 +1,8 @@
 package blockchain
 
 import (
+	"bytes"
+	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -104,7 +106,7 @@ func (c *BlockChain) AddBlock(txs []*Transaction) {
 	c.LastHash = block.Hash
 }
 
-func (c *BlockChain) FindUnspentTransactions(address string) []Transaction {
+func (c *BlockChain) FindUnspentTransactions(pubKeyHash []byte) []Transaction {
 	unspentTxs := []Transaction{}
 
 	spentTXOs := map[string][]int{}
@@ -117,7 +119,7 @@ func (c *BlockChain) FindUnspentTransactions(address string) []Transaction {
 			txID := hex.EncodeToString(tx.ID)
 
 			for outIdx, txo := range tx.Outputs {
-				if !txo.CanBeUnlocked(address) {
+				if !txo.IsLockedWithKey(pubKeyHash) {
 					continue
 				}
 
@@ -141,7 +143,7 @@ func (c *BlockChain) FindUnspentTransactions(address string) []Transaction {
 			}
 
 			for _, txi := range tx.Inputs {
-				if txi.CanUnlock(address) {
+				if txi.UsesKey(pubKeyHash) {
 					txInID := hex.EncodeToString(txi.ID)
 					spentTXOs[txInID] = append(spentTXOs[txInID], txi.Out)
 				}
@@ -152,13 +154,13 @@ func (c *BlockChain) FindUnspentTransactions(address string) []Transaction {
 	return unspentTxs
 }
 
-func (c *BlockChain) FindUTXO(address string) []TxOutput {
+func (c *BlockChain) FindUTXO(pubKeyHash []byte) []TxOutput {
 	UTXOs := []TxOutput{}
-	unspentTransactions := c.FindUnspentTransactions(address)
+	unspentTransactions := c.FindUnspentTransactions(pubKeyHash)
 
 	for _, tx := range unspentTransactions {
 		for _, out := range tx.Outputs {
-			if out.CanBeUnlocked(address) {
+			if out.IsLockedWithKey(pubKeyHash) {
 				UTXOs = append(UTXOs, out)
 			}
 		}
@@ -167,11 +169,11 @@ func (c *BlockChain) FindUTXO(address string) []TxOutput {
 	return UTXOs
 }
 
-func (c *BlockChain) FindSpendableOutputs(address string, amount int) (int, map[string][]int) {
+func (c *BlockChain) FindSpendableOutputs(pubKeyHash []byte, amount int) (int, map[string][]int) {
 	unspentOuts := map[string][]int{}
 	accumulated := 0
 
-	unspentTxs := c.FindUnspentTransactions(address)
+	unspentTxs := c.FindUnspentTransactions(pubKeyHash)
 
 	for _, tx := range unspentTxs {
 		if accumulated >= amount {
@@ -181,7 +183,7 @@ func (c *BlockChain) FindSpendableOutputs(address string, amount int) (int, map[
 		txID := hex.EncodeToString(tx.ID)
 
 		for idx, out := range tx.Outputs {
-			if out.CanBeUnlocked(address) {
+			if out.IsLockedWithKey(pubKeyHash) {
 				accumulated += out.Value
 				unspentOuts[txID] = append(unspentOuts[txID], idx)
 
@@ -193,6 +195,46 @@ func (c *BlockChain) FindSpendableOutputs(address string, amount int) (int, map[
 	}
 
 	return accumulated, unspentOuts
+}
+
+func (c *BlockChain) FindTransaction(ID []byte) (Transaction, error) {
+	iter := c.Iterator()
+
+	for iter.Next() {
+		block := iter.Value()
+
+		for _, tx := range block.Transactions {
+			if bytes.Equal(tx.ID, ID) {
+				return *tx, nil
+			}
+		}
+	}
+
+	return Transaction{}, fmt.Errorf("transaction does not exists")
+}
+
+func (c *BlockChain) SignTransaction(tx *Transaction, privKey ecdsa.PrivateKey) {
+	prevTXs := map[string]Transaction{}
+
+	for _, txIn := range tx.Inputs {
+		prevTX, err := c.FindTransaction(txIn.ID)
+		utils.HandleError(err)
+		prevTXs[hex.EncodeToString(prevTX.ID)] = prevTX
+	}
+
+	tx.Sign(privKey, prevTXs)
+}
+
+func (c *BlockChain) VerifyTransaction(tx *Transaction) bool {
+	prevTXs := map[string]Transaction{}
+
+	for _, txIn := range tx.Inputs {
+		prevTX, err := c.FindTransaction(txIn.ID)
+		utils.HandleError(err)
+		prevTXs[hex.EncodeToString(prevTX.ID)] = prevTX
+	}
+
+	return tx.Verify(prevTXs)
 }
 
 func (c *BlockChain) String() string {

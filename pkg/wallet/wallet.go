@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	checksupLength = 4
+	checksumLength = 4
 	version        = byte(0x00)
 )
 
@@ -31,7 +31,7 @@ type PrivateKey struct {
 }
 
 func NewWallet() *Wallet {
-	private, public := newKeyPair()
+	private, public := NewKeyPair()
 	wallet := Wallet{
 		PrivateKey: private,
 		PublicKey:  public,
@@ -41,10 +41,10 @@ func NewWallet() *Wallet {
 }
 
 func (w *Wallet) Address() []byte {
-	publichHash := publicKeyHash(w.PublicKey)
+	publichHash := PublicKeyHash(w.PublicKey)
 
 	versionedHash := append([]byte{version}, publichHash...)
-	checksum := checksum(versionedHash)
+	checksum := Checksum(versionedHash)
 
 	fullHash := append(versionedHash, checksum...)
 	address := utils.Base58Encode(fullHash)
@@ -102,7 +102,17 @@ func (w *Wallet) GobDecode(data []byte) error {
 	return nil
 }
 
-func newKeyPair() (ecdsa.PrivateKey, []byte) {
+func ValidateAddress(address string) bool {
+	pubKeyHash := utils.Base58Decode([]byte(address))
+	currentChecksum := Checksum(pubKeyHash[len(pubKeyHash)-checksumLength:])
+	version := pubKeyHash[0]
+	pubKeyHash = pubKeyHash[1 : len(pubKeyHash)-checksumLength]
+	targetChecksum := Checksum(append([]byte{version}, pubKeyHash...))
+
+	return bytes.Equal(currentChecksum, targetChecksum)
+}
+
+func NewKeyPair() (ecdsa.PrivateKey, []byte) {
 	curve := elliptic.P256()
 
 	private, err := ecdsa.GenerateKey(curve, rand.Reader)
@@ -114,7 +124,7 @@ func newKeyPair() (ecdsa.PrivateKey, []byte) {
 	return *private, public
 }
 
-func publicKeyHash(publicKey []byte) []byte {
+func PublicKeyHash(publicKey []byte) []byte {
 	publicHash := sha256.Sum256(publicKey)
 
 	hasher := ripemd160.New()
@@ -128,9 +138,9 @@ func publicKeyHash(publicKey []byte) []byte {
 	return publicRipMD
 }
 
-func checksum(payload []byte) []byte {
+func Checksum(payload []byte) []byte {
 	firstHash := sha256.Sum256(payload)
 	secondHash := sha256.Sum256(firstHash[:])
 
-	return secondHash[:checksupLength]
+	return secondHash[:checksumLength]
 }

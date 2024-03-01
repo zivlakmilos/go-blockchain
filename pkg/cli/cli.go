@@ -3,6 +3,7 @@ package cli
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"runtime"
 
@@ -113,12 +114,19 @@ func (c *CommandLine) Run() {
 }
 
 func (c *CommandLine) handleBalance(address string) {
+	if !wallet.ValidateAddress(address) {
+		log.Panic("address is not valid")
+	}
+
 	chain := blockchain.OpenBlockChain("")
 	defer chain.Database.Close()
 
 	amount := 0
 
-	UTXOs := chain.FindUTXO(address)
+	pubKeyHash := utils.Base58Decode([]byte(address))
+	pubKeyHash = pubKeyHash[1 : len(pubKeyHash)-4]
+
+	UTXOs := chain.FindUTXO(pubKeyHash)
 	for _, txo := range UTXOs {
 		amount += txo.Value
 	}
@@ -139,6 +147,13 @@ func (c *CommandLine) handlePrint() {
 }
 
 func (c *CommandLine) handleSend(from, to string, amount int) {
+	if !wallet.ValidateAddress(from) {
+		log.Panic("address is not valid")
+	}
+	if !wallet.ValidateAddress(to) {
+		log.Panic("address is not valid")
+	}
+
 	chain := blockchain.OpenBlockChain("")
 	defer chain.Database.Close()
 

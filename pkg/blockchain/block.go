@@ -52,11 +52,9 @@ func (b *Block) HashTransactions() []byte {
 func (b *Block) String() string {
 	var builder strings.Builder
 
-	builder.WriteString(fmt.Sprintf("Previous Hash: %x\n", b.PrevHash))
-	builder.WriteString(fmt.Sprintf("Hash: %x\n", b.Hash))
-
-	p := NewProofOfWork(b)
-	builder.WriteString(fmt.Sprintf("PoW: %v\n", p.Validate()))
+	for _, tx := range b.Transactions {
+		builder.WriteString(fmt.Sprintf("%v\n", tx))
+	}
 
 	return builder.String()
 }
