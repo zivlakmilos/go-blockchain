@@ -237,16 +237,16 @@ func (t *Transaction) String() string {
 
 	for idx, txIn := range t.Inputs {
 		builder.WriteString(fmt.Sprintf("  Input %d:\n", idx))
-		builder.WriteString(fmt.Sprintf("    TXID:      %x:\n", txIn.ID))
-		builder.WriteString(fmt.Sprintf("    Out:       %d:\n", txIn.Out))
-		builder.WriteString(fmt.Sprintf("    Signature: %x:\n", txIn.Signature))
-		builder.WriteString(fmt.Sprintf("    PubKey:    %x:\n", txIn.PubKey))
+		builder.WriteString(fmt.Sprintf("    TXID:      %x\n", txIn.ID))
+		builder.WriteString(fmt.Sprintf("    Out:       %d\n", txIn.Out))
+		builder.WriteString(fmt.Sprintf("    Signature: %x\n", txIn.Signature))
+		builder.WriteString(fmt.Sprintf("    PubKey:    %x\n", txIn.PubKey))
 	}
 
 	for idx, txOut := range t.Outputs {
 		builder.WriteString(fmt.Sprintf("  Output %d:\n", idx))
-		builder.WriteString(fmt.Sprintf("    Value:      %d:\n", txOut.Value))
-		builder.WriteString(fmt.Sprintf("    PubKeyHash: %x:\n", txOut.PubKeyHash))
+		builder.WriteString(fmt.Sprintf("    Value:      %d\n", txOut.Value))
+		builder.WriteString(fmt.Sprintf("    PubKeyHash: %x\n", txOut.PubKeyHash))
 	}
 
 	return builder.String()
